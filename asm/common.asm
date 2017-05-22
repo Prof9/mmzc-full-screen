@@ -439,7 +439,7 @@ ZC_ScrollBG:
 //---------------------------------------------------
 // Mask out-of-bounds level tiles on screen reloads.
 //---------------------------------------------------
-ZC_ReloadMap:
+ZC_ReloadLevel:
 .org 0x0200C6F4
 .area 0xCC
 	push	r4-r7,r14
@@ -492,7 +492,8 @@ ZC_ReloadMap:
 	ldrb	r4,[r4,1h]
 	sub	r4,1h		// r4 = current game
 	lsl	r4,r4,1h
-	ldrh	r4,[r5,r4]	// r4 = max map size
+	ldrh	r4,[r5,r4]
+	lsl	r4,r4,2h	// r4 = max map size
 	cmp	r2,r4
 	bge	@@hide2		// if (mapWidth * ty + tx >= maxMapSize)
 
@@ -537,10 +538,12 @@ ZC_ReloadMap:
 	.pool
 
 ZC_MaxMapSizes:
-	.dh	57604	// Zero 1
-	.dh	89104	// Zero 2
-	.dh	89104	// Zero 3
-	.dh	89104	// Zero 4
+	// Multiply by 4 to get actual value.
+	// Fits in 16-bit values this way.
+	.dh	57604 / 4	// Zero 1
+	.dh	89104 / 4	// Zero 2
+	.dh	89104 / 4	// Zero 3
+	.dh	89104 / 4	// Zero 4
 .endarea
 
 .close
