@@ -418,17 +418,214 @@ ZC_ScrollBG:
 	.pool
 .endarea
 
+.thumb
+.org 0x0200C45C
+.area 0x250
+ZC_ReloadBG:
+	push	r4-r7,r14
+	add	sp,-34h
+	str	r0,[sp]		// store bg data ptr
+	str	r1,[sp,4h]	// store cam ptr
+	str	r2,[sp,8h]	// store vram ptr
+
+	ldr	r2,[r1,4h]	// r2 = cam.y
+	ldr	r1,[r1]		// r1 = cam.x
+	sub	r1,32		// r1 = cam.x - 32 = x
+	sub	r2,16		// r2 = cam.y - 16 = y
+	str	r1,[sp,0Ch]	// store x
+	str	r1,[sp,2Ch]	// store initial x
+	str	r2,[sp,10h]	// store y
+
+	ldr	r4,[r0,14h]
+	ldrb	r1,[r4,1h]	// r1 = default screen
+	str	r1,[sp,14h]
+	ldrb	r5,[r4,3h]	// r5 = data.screensHeight
+	mov	r1,160
+	mul	r1,r5		// r1 = max camera y
+	str	r1,[sp,1Ch]
+	ldrb	r5,[r4]		// r5 = data.screensWidth
+	mov	r1,240
+	mul	r1,r5		// r1 = max camera x
+	str	r1,[sp,18h]
+	add	r4,4h		// r4 = data.screens
+
+	mov	r0,0h		// i = 0
+	mov	r1,0h		// j = 0
+	str	r0,[sp,20h]	// store i
+	str	r1,[sp,24h]	// store j
+
+	// calc x / 240, (x % 240) / 16
+	ldr	r0,[sp,0Ch]
+	mov	r1,240
+	blx	2023ED4h	// x / 240
+	asr	r6,r1,4h	// r6 = (x % 240) / 16 = tx
+;	bpl	@@addSX
+;	sub	r4,1h		// move to previous column
+;@@addSX:
+	add	r4,r4,r0	// r4 += x / 240
+	str	r6,[sp,28h]	// store initial tx
+
+	// calc y / 160, (y % 160) / 16
+	ldr	r0,[sp,10h]
+	mov	r1,160
+	blx	2023ED4h	// y / 160
+	asr	r7,r1,4h	// r7 = (y % 160) / 16 = ty
+;	bpl	@@addSY
+;	sub	r4,r4,r5	// move to previous row
+;@@addSY:
+	mul	r0,r5		// r0 = data.screensWidth * (y / 160)
+	add	r4,r4,r0	// r4 += data.screensWidth * (y / 160)
+	str	r4,[sp,30h]	// store initial screen ptr
+
+@@screen:
+	// check if x < 0
+	ldr	r0,[sp,0Ch]
+	cmp	r0,0h
+	blt	@@outOfBounds
+	// check if x > max_x
+	ldr	r1,[sp,18h]
+	cmp	r0,r1
+	bge	@@outOfBounds
+	// check if y < 0
+	ldr	r0,[sp,10h]
+	cmp	r0,0h
+	blt	@@outOfBounds
+	// check if y > max_y
+	ldr	r1,[sp,1Ch]
+	cmp	r0,r1
+	bge	@@outOfBounds
+
+	ldrb	r0,[r4]		// r0 = screen
+	b	@@addScreen
+
+@@outOfBounds:
+	ldr	r0,[sp,14h]	// r0 = default screen
+
+@@addScreen:
+	mov	r1,150		// r1 = 150
+	mul	r0,r1		// r0 = screen * 150
+	mov	r1,15		// r1 = 15
+	mov	r2,r7
+	bpl	@@addTY
+@@offsetTY:
+	add	r2,10
+//	bmi	@@scrollH_offsetTY
+@@addTY:
+	mul	r2,r1		// r2 = ty * 15
+	add	r0,r0,r2	// r0 = screen' + hy'
+	mov	r2,r6
+	bpl	@@addTX
+@@offsetTX:
+	add	r2,15
+//	bmi	@@offsetTX
+@@addTX:
+	add	r0,r0,r2	// r0 = screen' + hy' + hx'
+	lsl	r0,r0,1h
+	ldr	r1,[sp]		// r1 = data
+	ldr	r1,[r1,10h]	// r1 = block array ptr
+	add	r5,r1,r0	// r5 = block ptr
+
+@@block:
+	// load tile pointer
+	ldrh	r0,[r5]		// r0 = block
+	lsl	r0,r0,3h	// r0 = block * 8
+	ldr	r1,[sp]		// r1 = data
+	ldr	r1,[r1,0Ch]	// r1 = tile array ptr
+	add	r1,r0,r1	// r1 = tile ptr
+	ldr	r2,[r1]		// load tileAB
+	ldr	r3,[r1,4h]	// load tileCD
+
+@@writeTile:
+	// calc vram ptr
+	ldr	r0,[sp,0Ch]	// r0 = x
+	lsl	r1,r0,17h
+	lsr	r1,r1,1Fh
+	lsl	r1,r1,0Bh	// r1 = ((x & 0x100) >> 8) * 0x800
+	lsr	r0,r0,4h
+	lsl	r0,r0,1Ch
+	lsr	r0,r0,1Ah	// r0 = ((x & 0xFF) / 16) * 0x4
+	add	r0,r0,r1	// r0 = x'
+	ldr	r1,[sp,10h]	// r1 = y
+	lsr	r1,r1,4h
+	lsl	r1,r1,1Ch
+	lsr	r1,r1,15h	// r1 = ((y & 0xFF) / 16) * 0x80
+	add	r0,r0,r1	// r0 = x' + y'
+	ldr	r1,[sp,8h]
+	add	r0,r0,r1	// r0 = vram ptr
+	str	r2,[r0]		// store tileAB
+	str	r3,[r0,40h]	// store tileCD
+
+	// increment i
+	ldr	r0,[sp,20h]
+	add	r0,1h		// i += 1
+	str	r0,[sp,20h]
+	cmp	r0,21		// 240->256 so 20->21
+	blt	@@nextCol
+
+	// increment j
+	mov	r0,0h
+	str	r0,[sp,20h]	// i = 0
+	ldr	r0,[sp,24h]
+	add	r0,1h
+	str	r0,[sp,24h]	// j += 1
+	cmp	r0,15		// 160->192 so 13->15
+	bge	@@end
+
+@@nextRow:
+	// reset x
+	ldr	r0,[sp,2Ch]
+	str	r0,[sp,0Ch]	// x = initial x
+
+	// increment y
+	ldr	r0,[sp,10h]
+	add	r0,16
+	str	r0,[sp,10h]	// y += 16
+
+	// initialize screen ptr and tx, increment ty
+	ldr	r4,[sp,30h]	// screen ptr = initial screen ptr
+	ldr	r6,[sp,28h]	// tx = initial tx
+	add	r7,1h		// ty += 1
+	cmp	r7,10
+	blt	@@screen
+
+@@nextScreenRow:
+	mov	r7,0h		// reset ty to 0
+	ldr	r0,[sp]
+	ldr	r0,[r0,14h]
+	ldrb	r0,[r0]		// r0 = data.screensWidth
+	add	r4,r0		// screen ptr += data.screensWidth
+	str	r4,[sp,30h]	// update initial screen ptr
+	b	@@screen
+
+@@nextCol:
+	// increment block ptr
+	add	r5,1*2		// move to block on next column
+
+	// increment x
+	ldr	r0,[sp,0Ch]
+	add	r0,16		// x += 16
+	str	r0,[sp,0Ch]
+
+	// increment tx
+	add	r6,1h
+	beq	@@screen
+	cmp	r6,15
+	blt	@@block
+
+@@nextScreenCol:
+	mov	r6,0h		// reset tx to 0
+	add	r4,1h		// move to screen on next column
+	b	@@screen
+
+@@end:
+	add	sp,34h
+	pop	r4-r7,r15
+	.pool
+.endarea
+
 
 
 // TODO: find out what this is
-.org 0x0200C544
-	cmp	r0,0Fh
-.org 0x0200C556
-	cmp	r0,0Fh
-.org 0x0200C580
-	cmp	r3,15h
-.org 0x0200C58E
-	cmp	r3,15h
 .org 0x0200C980		// probably level v-scroll stuff
 	cmp	r2,0Fh
 .org 0x0200C9DE
