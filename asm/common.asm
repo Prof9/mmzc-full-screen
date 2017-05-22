@@ -204,7 +204,7 @@ ZC_ScrollBG:
 	bpl	@@scrollH_addTY
 @@scrollH_offsetTY:
 	add	r2,10
-	bmi	@@scrollH_offsetTY
+//	bmi	@@scrollH_offsetTY
 @@scrollH_addTY:
 	mul	r2,r1		// r2 = ty * 15
 	add	r0,r0,r2	// r0 = screen' + hy'
@@ -212,7 +212,7 @@ ZC_ScrollBG:
 	bpl	@@scrollH_addTX
 @@scrollH_offsetTX:
 	add	r2,15
-	bmi	@@scrollH_offsetTX
+//	bmi	@@scrollH_offsetTX
 @@scrollH_addTX:
 	add	r0,r0,r2	// r0 = screen' + hy' + hx'
 	lsl	r0,r0,1h
@@ -339,7 +339,7 @@ ZC_ScrollBG:
 	bpl	@@scrollV_addTY
 @@scrollV_offsetTY:
 	add	r2,10
-	bmi	@@scrollV_offsetTY
+//	bmi	@@scrollV_offsetTY
 @@scrollV_addTY:
 	mul	r2,r1		// r2 = ty * 15
 	add	r0,r0,r2	// r0 = screen' + vy'
@@ -347,7 +347,7 @@ ZC_ScrollBG:
 	bpl	@@scrollV_addTX
 @@scrollV_offsetTX:
 	add	r2,15
-	bmi	@@scrollV_offsetTX
+//	bmi	@@scrollV_offsetTX
 @@scrollV_addTX:
 	add	r0,r0,r2	// r0 = screen' + vy' + vx'
 	lsl	r0,r0,1h
