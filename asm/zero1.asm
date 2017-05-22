@@ -1,11 +1,18 @@
 .nds
 .open "temp\overlay\overlay_0001.bin",0x02064000
 
+//----------------------------------
+// Camera push-back at edge of map.
+//----------------------------------
+.thumb
+.org 0x02065564
+
+
+
 //--------------------------
 // Full screen intro logos.
 //--------------------------
 .thumb
-
 .org 0x020C9816
 	bl	ZC_ClearBG3
 
@@ -15,7 +22,6 @@
 // Full screen title screen.
 //---------------------------
 .thumb
-
 // Full width buffer tiles.
 .org 0x020CA2FA
 	cmp	r2,20h
