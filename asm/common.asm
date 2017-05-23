@@ -654,6 +654,9 @@ ZC_ReloadLevel:
 	strh	r6,[r0,8h]
 	strh	r7,[r0,0Ah]
 
+	sub	r4,32
+	sub	r5,16
+
 	asr	r4,r4,4h
 	asr	r5,r5,4h
 	mov	r12,r4
@@ -666,9 +669,9 @@ ZC_ReloadLevel:
 	str	r2,[sp,8h]	// sp+08 = r2
 	add	r3,4h
 
-	mov	r7,0Ch		// r7 = i
+	mov	r7,15		// r7 = i
 @@loop_i:
-	mov	r6,10h		// r6 = j
+	mov	r6,21		// r6 = j
 @@loop_j:
 	mov	r0,r12
 	mov	r1,r14
