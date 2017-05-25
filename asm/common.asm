@@ -885,7 +885,7 @@ ZC_ScrollLevel:
 	ldrh	r5,[r6,r5]
 	lsl	r5,r5,2h	// r5 = max map size
 	cmp	r4,r5		// if maxWidth * vty + vtx >= maxMapSize
-	bge	@@scrollH_outOfBounds2
+	bge	@@scrollV_outOfBounds2
 
 	lsl	r4,r4,1h
 	add	r4,4h
