@@ -154,7 +154,7 @@ ZC_ScrollBG:
 	// r4 = data.bgData.bgs here
 	// r5 = data.bgData.width here
 
-	mov	r1,15		// 160->192 so 13->15
+	mov	r1,15-1		// 160->192 so 13->15
 	str	r1,[sp,20h]	// store i
 
 	// calc hx / 240, (hx % 240) / 16
@@ -289,7 +289,7 @@ ZC_ScrollBG:
 	ldrb	r5,[r4]
 	add	r4,4h
 
-	mov	r1,21		// 240->256 so 20->21
+	mov	r1,21-1		// 240->256 so 20->21
 	str	r1,[sp,20h]	// store i
 
 	// calc vx / 240, (vx % 240) / 16
@@ -418,6 +418,11 @@ ZC_ScrollBG:
 	.pool
 .endarea
 
+
+
+//------------------------------------------------------------
+// Expand BG reload range, draw default BG for out-of-bounds.
+//------------------------------------------------------------
 .thumb
 .org 0x0200C45C
 .area 0x250
@@ -459,9 +464,6 @@ ZC_ReloadBG:
 	mov	r1,240
 	blx	2023ED4h	// x / 240
 	asr	r6,r1,4h	// r6 = (x % 240) / 16 = tx
-;	bpl	@@addSX
-;	sub	r4,1h		// move to previous column
-;@@addSX:
 	add	r4,r4,r0	// r4 += x / 240
 	str	r6,[sp,28h]	// store initial tx
 
@@ -470,9 +472,6 @@ ZC_ReloadBG:
 	mov	r1,160
 	blx	2023ED4h	// y / 160
 	asr	r7,r1,4h	// r7 = (y % 160) / 16 = ty
-;	bpl	@@addSY
-;	sub	r4,r4,r5	// move to previous row
-;@@addSY:
 	mul	r0,r5		// r0 = data.screensWidth * (y / 160)
 	add	r4,r4,r0	// r4 += data.screensWidth * (y / 160)
 	str	r4,[sp,30h]	// store initial screen ptr
@@ -625,17 +624,9 @@ ZC_ReloadBG:
 
 
 
-// TODO: find out what this is
-.org 0x0200C980		// probably level v-scroll stuff
-	cmp	r2,0Fh
-.org 0x0200C9DE
-	cmp	r5,12h
-
-
-
-//---------------------------------------------------
-// Mask out-of-bounds level tiles on screen reloads.
-//---------------------------------------------------
+//------------------------------------------------------
+// Expand level reload range, mask out-of-bounds tiles.
+//------------------------------------------------------
 ZC_ReloadLevel:
 .org 0x0200C6F4
 .area 0xCC
@@ -669,9 +660,9 @@ ZC_ReloadLevel:
 	str	r2,[sp,8h]	// sp+08 = r2
 	add	r3,4h
 
-	mov	r7,15		// r7 = i
+	mov	r7,15-1		// r7 = i
 @@loop_i:
-	mov	r6,21		// r6 = j
+	mov	r6,21-1		// r6 = j
 @@loop_j:
 	mov	r0,r12
 	mov	r1,r14
@@ -687,7 +678,7 @@ ZC_ReloadLevel:
 	mul	r2,r1
 	add	r2,r2,r0	// r2 = mapWidth * ty + tx
 
-	ldr	r5,=ZC_MaxMapSizes
+	add	r5,=ZC_MaxMapSizes
 	ldr	r4,=2040524h
 	ldrb	r4,[r4,1h]
 	sub	r4,1h		// r4 = current game
@@ -744,6 +735,208 @@ ZC_MaxMapSizes:
 	.dh	89104 / 4	// Zero 2
 	.dh	89104 / 4	// Zero 3
 	.dh	89104 / 4	// Zero 4
+.endarea
+
+
+
+//----------------------------------------------------------
+// Expand level scrolling stride, mask out-of-bounds tiles.
+//----------------------------------------------------------
+ZC_ScrollLevel:
+.org 0x0200C8A8
+.area 0x160
+	push	r4-r7,r14
+	add	sp,-0Ch
+	str	r1,[sp]
+	str	r2,[sp,4h]
+	str	r3,[sp,8h]
+
+@@checkX:
+	ldr	r4,[r1]		// r4 = cam.x
+	ldr	r5,[r0]		// r5 = data.camX
+	lsl	r6,r4,1Bh
+	lsr	r6,r6,1Fh	// r6 = cam.x & 0x10
+	lsl	r7,r5,1Bh
+	lsr	r7,r7,1Fh	// r7 = data.camX & 0x10
+	cmp	r6,r7		// if cam.x & 10 != data.camX & 10
+	beq	@@checkY
+	cmp	r4,r5		// if cam.x > data.camX
+	ble	@@checkX_left
+@@checkX_right:
+	add	r4,240
+	add	r4,16+32+32	// r4 = cam.x + 256 + 32 (+ 32 subtracted next)
+@@checkX_left:
+	sub	r4,32		// r4 = cam.x - 32
+@@checkX_end:
+	ldr	r5,[r1,4h]	// r5 = cam.y
+	sub	r5,16		// r5 = cam.y - 16
+	asr	r4,r4,4h	// r4 = htx
+	asr	r5,r5,4h	// r5 = hty
+	mov	r12,r4		// r12 = htx
+	mov	r14,r5		// r14 = hty
+
+@@scrollH:
+	mov	r7,15-1		// r7 = i
+@@scrollH_loop:
+	mov	r2,r14		// r2 = hty
+	mov	r1,r12		// r1 = htx
+	cmp	r1,0h
+	blt	@@scrollH_outOfBounds
+	add	r2,r2,r7	// r2 = hty + i
+	bmi	@@scrollH_outOfBounds2
+
+	ldr	r4,[r3]
+	cmp	r1,r4		// if htx >= mapWidth
+	bge	@@scrollH_outOfBounds2
+
+	mul	r4,r2
+	add	r4,r4,r1	// r4 = mapWidth * hty + htx
+
+	ldr	r6,=ZC_MaxMapSizes
+	ldr	r5,=2040524h
+	ldrb	r5,[r5,1h]
+	sub	r5,1h		// r5 = current game
+	lsl	r5,r5,1h
+	ldrh	r5,[r6,r5]
+	lsl	r5,r5,2h	// r5 = max map size
+	cmp	r4,r5		// if mapWidth * hty + htx >= maxMapSize
+	bge	@@scrollH_outOfBounds2
+
+	lsl	r4,r4,1h
+	add	r4,4h
+	ldrh	r4,[r3,r4]	// r4 = block
+	lsl	r4,r4,3h
+	ldr	r5,[r0,0Ch]
+	add	r5,r4,r5
+	ldr	r4,[r5]		// r4 = tileAB
+	ldr	r5,[r5,4h]	// r5 = tileCD
+	b	@@scrollH_write
+
+@@scrollH_outOfBounds:
+	add	r2,r2,r7
+@@scrollH_outOfBounds2:
+	mov	r4,0h		// r4 = tileAB
+	mov	r5,0h		// r5 = tileCD
+
+@@scrollH_write:
+	lsl	r6,r1,1Bh
+	lsr	r6,r6,1Fh
+	lsl	r6,r6,0Bh
+	lsl	r1,r1,1Ch
+	lsr	r1,r1,1Ah
+	lsl	r2,r2,1Ch
+	lsr	r2,r2,15h
+	add	r1,r1,r2
+	add	r1,r1,r6
+	ldr	r6,[sp,4h]	// r6 = tmap
+	add	r1,r1,r6
+	str	r4,[r1]
+	str	r5,[r1,40h]
+
+	sub	r7,1h
+	bpl	@@scrollH_loop
+
+@@checkY:
+	ldr	r1,[sp]
+	ldr	r5,[r1,4h]	// r5 = cam.y
+	ldr	r4,[r0,4h]	// r4 = data.camX
+	lsl	r6,r5,1Bh
+	lsr	r6,r6,1Fh	// r6 = cam.y & 0x10
+	lsl	r7,r4,1Bh
+	lsr	r7,r7,1Fh	// r7 = data.camY & 0x10
+	cmp	r6,r7		// if cam.y & 10 != data.camY & 10
+	beq	@@end
+	cmp	r5,r4		// if cam.y > data.camY
+	ble	@@checkY_up
+@@checkY_down:
+	add	r5,192+16+16	// r5 = cam.y + 192 + 16 (+ 16 subtracted next)
+@@checkY_up:
+	sub	r5,16		// r5 = cam.y - 16
+@@checkY_end:
+	ldr	r4,[r1]		// r4 = cam.x
+	sub	r4,32		// r4 = cam.x - 32
+	asr	r4,r4,4h	// r4 = vtx
+	asr	r5,r5,4h	// r5 = vty
+	mov	r12,r4		// r12 = vtx
+	mov	r14,r5		// r14 = vty
+
+@@scrollV:
+	mov	r7,21-1		// r7 = i
+@@scrollV_loop:
+	mov	r1,r12		// r1 = vtx
+	mov	r2,r14		// r2 = vty
+	cmp	r2,0h
+	blt	@@scrollV_outOfBounds
+	add	r1,r1,r7	// r1 = vtx + i
+	bmi	@@scrollV_outOfBounds2
+
+	ldr	r4,[r3]
+	cmp	r1,r4		// if vtx + i >= mapWidth
+	bge	@@scrollV_outOfBounds2
+
+	mul	r4,r2
+	add	r4,r4,r1	// r4 = mapWidth * vty + vtx
+
+	ldr	r6,=ZC_MaxMapSizes
+	ldr	r5,=2040524h
+	ldrb	r5,[r5,1h]
+	sub	r5,1h		// r5 = current game
+	lsl	r5,r5,1h
+	ldrh	r5,[r6,r5]
+	lsl	r5,r5,2h	// r5 = max map size
+	cmp	r4,r5		// if maxWidth * vty + vtx >= maxMapSize
+	bge	@@scrollH_outOfBounds2
+
+	lsl	r4,r4,1h
+	add	r4,4h
+	ldrh	r4,[r3,r4]	// r4 = block
+	lsl	r4,r4,3h
+	ldr	r5,[r0,0Ch]
+	add	r5,r4,r5
+	ldr	r4,[r5]		// r4 = tileAB
+	ldr	r5,[r5,4h]	// r5 = tileCD
+	b	@@scrollV_write
+
+@@scrollV_outOfBounds:
+	add	r1,r1,r7
+@@scrollV_outOfBounds2:
+	mov	r4,0h		// r4 = tileAB
+	mov	r5,0h		// r5 = tileCD
+
+@@scrollV_write:
+	lsl	r6,r1,1Bh
+	lsr	r6,r6,1Fh
+	lsl	r6,r6,0Bh
+	lsl	r1,r1,1Ch
+	lsr	r1,r1,1Ah
+	lsl	r2,r2,1Ch
+	lsr	r2,r2,15h
+	add	r1,r1,r2
+	add	r1,r1,r6
+	ldr	r6,[sp,4h]	// r6 = tmap
+	add	r1,r1,r6
+	str	r4,[r1]
+	str	r5,[r1,40h]
+
+	sub	r7,1h
+	bpl	@@scrollV_loop
+
+@@end:
+	ldr	r1,[sp]
+	ldr	r2,[r1]
+	ldr	r3,[r1,4h]
+	lsl	r4,r2,17h
+	lsr	r4,r4,17h
+	lsl	r5,r3,17h
+	lsr	r5,r5,17h
+	str	r2,[r0]
+	str	r3,[r0,4h]
+	strh	r4,[r0,8h]
+	strh	r5,[r0,0Ah]
+	add	sp,0Ch
+	pop	r4-r7,r15
+
+	.pool
 .endarea
 
 .close
