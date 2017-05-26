@@ -14,21 +14,24 @@
 .org 0x0200E90C
 .area 0x158
 ZC_ClearBG1:
-	ldr	r1,=600C000h
+	mov	r1,0Ch
 	b	ZC_ClearBG
 ZC_ClearBG2:
-	ldr	r1,=6002000h
+	mov	r1,2h
 	b	ZC_ClearBG
 ZC_ClearBG3:
-	ldr	r1,=6001000h
+	mov	r1,1h
 ZC_ClearBG:
+	mov	r2,6h
+	lsl	r2,r2,18h
+	lsl	r1,r1,0Ch
+	orr	r1,r2
 	push	r14
 	add	r0,=@@vramFill
 	ldr	r2,=(800h/2) | (1<<24)
 	swi	0Bh
 
 	pop	r15
-	.pool
 
 @@vramFill:
 	// Blue tiles for Inti Creates intro screen.
@@ -57,6 +60,8 @@ Z1_TitleExtendLineIn3:
 	mov	r3,9Fh
 	mov	r1,7h
 	bx	r14
+
+	.pool
 .endarea
 
 
