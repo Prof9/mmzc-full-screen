@@ -939,4 +939,51 @@ ZC_ScrollLevel:
 	.pool
 .endarea
 
+
+
+//----------------------------
+// Expand OAM drawing ranges.
+//----------------------------
+.thumb
+.org 0x0200AB92
+	cmp	r6,192 + 64 - 1
+	bhi	200ABECh
+.org 0x0200ABF8
+	.dw	256 + 128 + 1
+
+.org 0x0200AE80
+	.dw	192 +  64
+.org 0x0200AE88
+	.dw	256 + 128 + 1
+
+.org 0x0200B0CC
+	.dw	192 +  64
+	.dw	256 + 128 + 1
+
+.org 0x0200B2D4
+	cmp	r5,192 + 64 - 1
+	bhi	200B346h
+.org 0x0200B36C
+	.dw	256 + 128 + 1
+
+.org 0x0200B468
+	cmp	r4,192 + 64 - 1
+	bhi	200B4E2h
+.org 0x0200B510
+	.dw	256 + 128 + 1
+
+.org 0x0200B5FC
+	cmp	r3,192 + 64 - 1
+	bhi	200B67Eh
+.org 0x0200B6B0
+	.dw	256 + 128 + 1
+
+.org 0x0200B7A8
+	cmp	r3,192 + 64 - 1
+	bhi	200B81Eh
+.org 0x0200B84C
+	.dw	256 + 128 + 1
+
+
+
 .close
