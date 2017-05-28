@@ -146,8 +146,13 @@ Z1_CameraPushBack:
 .endarea	// ...but we made it work somehow
 
 // Some world block/room number changes to fix some camera scrolling issues.
+// Resistance Base, empty block above Rank A+ hallway
+.org 0x020DC600 +     8*128 + 46
+	.db	0x19		// World block
+.org 0x020E8F80 + 4 + 2* 16 +  8
+	.db	0x08		// Room number
 // Resistance Base, elevator left to room with door leading to Trans Server
-.org 0x020E8F80 + 4 + 3*16 +  5
+.org 0x020E8F80 + 4 + 3* 16 +  5
 	.db	0x01		// Room number
 // Disposal Center boss gate (might also be able to fix in the level blocks)
 //.org 0x020DC600 +   + 4*96 + 70

@@ -420,7 +420,76 @@ ZC_ScrollBG:
 	add	sp,30h
 	pop	r4-r7,r15
 
+ZC_GetRoomFlags:
+	push	r0-r5,r14
+
+	mov	r7,0h		// result
+	ldr	r1,=2040524h
+	ldrb	r1,[r1,1h]
+	sub	r1,1h
+	bne	@@end
+
+	// Zero 1 only
+	ldr	r1,=212ADACh+48h
+	ldr	r1,[r1]
+	ldmia	[r1]!,r1,r2	// load zero world position
+	asr	r1,r1,0Ch
+	asr	r2,r2,0Ch
+	ldr	r3,=202D3B4h
+	ldrb	r1,[r3,r1]	// r1 = x / 15
+	ldr	r3,=202CBB4h
+	ldrb	r2,[r3,r2]	// r2 = y / 10
+	lsl	r4,r2,8h
+	orr	r4,r1		// r3 = (y / 10) << 8 | (x / 15)
+	add	r5,=ZC_Zero1RoomFlags
+@@loop:
+	ldrb	r1,[r5]
+	cmp	r1,0FFh
+	beq	@@end
+	ldrb	r2,[r5,1h]
+	lsl	r2,r2,8h
+	orr	r1,r2
+	cmp	r1,r4		// if current room listed
+	beq	@@found
+	add	r5,3h
+	b	@@loop
+@@found:
+	ldrb	r7,[r5,2h]	// load room flags
+
+@@end:
+	pop	r0-r5,r15
+
 	.pool
+
+.align 4
+ZC_Zero1RoomFlags:
+	// Left, Right, Up, Down
+	// Underground Laboratory, Trans Server
+	.db	50,29,(1 | 2 | 4 | 8)
+	// Disposal Center, Trans Server
+	.db	73, 4,(1 | 2 | 4 | 8)
+	// Desert, Trans Server
+	.db	30, 5,(1 | 2 | 4 | 8)
+	// Resistance Base, Ciel's room
+	.db	47, 9,(1 | 2 | 4 | 8)
+	// Resistance Base, Trans Server
+	.db	45,10,(1 | 2 | 4 | 8)
+	// Resistance Base, Cerveau's room
+	.db	45,13,(1 | 2 | 4 | 8)
+	// Resistance Base, 250 EC Cyber-Elf room
+	.db	47,13,(1 | 2 | 4 | 8)
+	// Resistance Base, Andrew room
+	.db	41,12,(1 | 2 | 4 | 8)
+	// Resistance Base, storage room
+	.db	38,13,(0 | 0 | 4 | 8)
+	.db	39,13,(0 | 0 | 4 | 8)
+	// Resistance Base, sickbay
+	.db	40, 6,(0 | 0 | 4 | 8)
+	.db	41, 6,(0 | 0 | 4 | 8)
+	// Resistance Base, Energy room
+	.db	38,12,(0 | 0 | 4 | 8)
+	.db	39,12,(0 | 0 | 4 | 8)
+	.db	0xFF
 .endarea
 
 
@@ -636,7 +705,10 @@ ZC_ReloadLevel:
 .org 0x0200C6F4
 .area 0xCC
 	push	r4-r7,r14
-	add	sp,-0Ch
+	add	sp,-10h
+
+	bl	ZC_GetRoomFlags
+	str	r7,[sp,0Ch]	// sp+0C = room flags
 
 	ldr	r4,[r1]		// r4 = camX
 	ldr	r5,[r1,4h]	// r5 = camY
@@ -650,6 +722,13 @@ ZC_ReloadLevel:
 	strh	r6,[r0,8h]
 	strh	r7,[r0,0Ah]
 
+	ldr	r0,[r0,0Ch]
+	str	r0,[sp]		// sp+00 = [r0,0Ch]
+	ldr	r1,[r3]
+	str	r1,[sp,4h]	// sp+04 = mapWidth
+	str	r2,[sp,8h]	// sp+08 = r2
+	add	r3,4h
+
 	sub	r4,32
 	sub	r5,16
 
@@ -657,13 +736,6 @@ ZC_ReloadLevel:
 	asr	r5,r5,4h
 	mov	r12,r4
 	mov	r14,r5
-
-	ldr	r0,[r0,0Ch]
-	str	r0,[sp]		// sp+00 = [r0,0Ch]
-	ldr	r1,[r3]
-	str	r1,[sp,4h]	// sp+04 = mapWidth
-	str	r2,[sp,8h]	// sp+08 = r2
-	add	r3,4h
 
 	mov	r7,15-1		// r7 = i
 @@loop_i:
@@ -676,6 +748,32 @@ ZC_ReloadLevel:
 	add	r0,r0,r6	// r0 = tx
 	bmi	@@hide2		// if (tx < 0)
 
+	ldr	r2,[sp,0Ch]	// get room flags
+@@roomLeft:
+	lsr	r2,r2,1h
+	bcc	@@roomRight
+	cmp	r6,3
+	blt	@@hide2
+
+@@roomRight:
+	lsr	r2,r2,1h
+	bcc	@@roomUp
+	cmp	r6,17
+	bgt	@@hide2
+
+@@roomUp:
+	lsr	r2,r2,1h
+	bcc	@@roomDown
+	cmp	r7,2
+	blt	@@hide2
+
+@@roomDown:
+	lsr	r2,r2,1h
+	bcc	@@checkMapSize
+	cmp	r7,11
+	bgt	@@hide2
+
+@@checkMapSize:
 	ldr	r2,[sp,4h]
 	cmp	r0,r2
 	bge	@@hide2		// if (tx >= mapWidth)
@@ -728,11 +826,12 @@ ZC_ReloadLevel:
 	sub	r7,1h
 	bpl	@@loop_i
 
-	add	sp,0Ch
+	add	sp,10h
 	pop	r4-r7,r15
 
 	.pool
 
+.align 4
 ZC_MaxMapSizes:
 	// Multiply by 4 to get actual value.
 	// Fits in 16-bit values this way.
@@ -751,7 +850,11 @@ ZC_ScrollLevel:
 .org 0x0200C8A8
 .area 0x160
 	push	r4-r7,r14
-	add	sp,-0Ch
+	add	sp,-10h
+
+	bl	ZC_GetRoomFlags
+	str	r7,[sp,0Ch]	// sp+0C = room flags
+
 	str	r1,[sp]
 	str	r2,[sp,4h]
 	str	r3,[sp,8h]
@@ -790,6 +893,20 @@ ZC_ScrollLevel:
 	add	r2,r2,r7	// r2 = hty + i
 	bmi	@@scrollH_outOfBounds2
 
+	ldr	r4,[sp,0Ch]	// get room flags
+@@scrollH_roomUp:
+	lsr	r4,r4,3h
+	bcc	@@scrollH_roomDown
+	cmp	r7,2
+	blt	@@scrollH_outOfBounds2
+
+@@scrollH_roomDown:
+	lsr	r4,r4,1h
+	bcc	@@scrollH_checkMapSize
+	cmp	r7,11
+	bgt	@@scrollH_outOfBounds2
+
+@@scrollH_checkMapSize:
 	ldr	r4,[r3]
 	cmp	r1,r4		// if htx >= mapWidth
 	bge	@@scrollH_outOfBounds2
@@ -875,6 +992,20 @@ ZC_ScrollLevel:
 	add	r1,r1,r7	// r1 = vtx + i
 	bmi	@@scrollV_outOfBounds2
 
+	ldr	r4,[sp,0Ch]	// get room flags
+@@scrollV_roomLeft:
+	lsr	r4,r4,1h
+	bcc	@@scrollV_roomRight
+	cmp	r7,3
+	blt	@@scrollV_outOfBounds2
+
+@@scrollV_roomRight:
+	lsr	r4,r4,1h
+	bcc	@@scrollV_checkMapSize
+	cmp	r7,17
+	bgt	@@scrollV_outOfBounds2
+
+@@scrollV_checkMapSize:
 	ldr	r4,[r3]
 	cmp	r1,r4		// if vtx + i >= mapWidth
 	bge	@@scrollV_outOfBounds2
@@ -928,17 +1059,15 @@ ZC_ScrollLevel:
 
 @@end:
 	ldr	r1,[sp]
-	ldr	r2,[r1]
-	ldr	r3,[r1,4h]
+	ldmia	[r1]!,r2,r3
 	lsl	r4,r2,17h
 	lsr	r4,r4,17h
 	lsl	r5,r3,17h
 	lsr	r5,r5,17h
-	str	r2,[r0]
-	str	r3,[r0,4h]
-	strh	r4,[r0,8h]
-	strh	r5,[r0,0Ah]
-	add	sp,0Ch
+	stmia	[r0]!,r2,r3
+	strh	r4,[r0]
+	strh	r5,[r0,2h]
+	add	sp,10h
 	pop	r4-r7,r15
 
 	.pool
