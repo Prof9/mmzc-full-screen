@@ -289,9 +289,9 @@ Z1_CameraPushBack:
 
 
 
-//----------------------------------------
-// Move Zero's HP bar up and to the left.
-//----------------------------------------
+//--------------------------------------
+// Move the HP bars up and to the side.
+//--------------------------------------
 .thumb
 .org 0x020C864C
 Z1_ZeroHpBar:
@@ -300,9 +300,9 @@ Z1_ZeroHpBar:
 
 	ldr	r1,[r0]			// r1 = tmap
 	ldr	r0,[r0,4h]		// r0 = data
-	add	r0,9Ch			// r0 = data+9Ch
 	cmp	r0,0h
 	beq	@@end
+	add	r0,9Ch			// r0 = data+9Ch
 
 	ldr	r2,=2035918h+4h
 	ldr	r2,[r2]
@@ -386,12 +386,52 @@ Z1_ZeroHpBar:
 	ldrb	r2,[r0]			// r2 = curHp
 	mov	r3,(18Fh-9Ch)
 	ldrb	r3,[r0,r3]		// r3 = barHp
+	lsl	r4,r3,1h
+	cmp	r2,r4
+	ble	@@hp_draw
+	mov	r2,r4			// upper bound on HP
+
+@@hp_draw:
 	ldr	r4,=12011200h		// r4 = first HP bar base tile
+	bl	Z1_DrawHpBar
+	ldr	r2,=12011200h		// r4 = top of HP bar
+	str	r2,[r1]
+
+@@rank:
+	add	r2,2Ah
+	strh	r2,[r1,4h]
+	add	r1,40h
+	mov	r3,(184h-9Ch)
+	ldrb	r3,[r0,r3]
+	sub	r3,26h
+	add	r3,r3,r2
+	strh	r3,[r1,4h]
+	add	r1,40h
+	add	r2,20h
+	strh	r2,[r1,4h]
+
+@@end:
+	pop	r4-r7,r15
+
+Z1_DrawHpBar:
+	// in:
+	//	r1	tmap ptr (row below HP bar)
+	//	r2	curHp (- barHp)
+	//	r3	barHp
+	//	r4	HP bar base tile
+	// out:
+	//	r1	tmap ptr (row above HP bar)
+	// destroys r1-r7
 	cmp	r2,r3
 	ble	@@hp_start
 @@hp_second:
 	add	r4,2h			// r4 = second HP bar base tile
 	sub	r2,r2,r3		// r2 = curHp - barHp
+	cmp	r2,r3
+	ble	@@hp_start
+@@hp_third:
+	add	r4,2h			// r4 = third HP bar base tile
+	sub	r2,r2,r3		// r2 = curHp - barHp * 2
 @@hp_start:
 	mov	r5,0h			// r5 = i
 	lsl	r6,r2,1Eh
@@ -422,20 +462,48 @@ Z1_ZeroHpBar:
 
 @@hp_top:
 	sub	r1,40h
-	ldr	r2,=12011200h
+	bx	r14
+
+	.pool
+.endarea
+
+.thumb
+.org 0x020C88E0
+Z1_BossHpBar:
+.area 0x174
+	push	r4-r7,r14
+
+	ldr	r1,[r0]			// r1 = tmap
+	ldr	r0,[r0,8h]		// r0 = data
+	cmp	r0,0h
+	beq	@@end
+
+	ldr	r2,=2035918h+4h
+	ldr	r2,[r2]
+	ldrb	r3,[r2,1h]
+	mov	r4,1h
+	orr	r3,r4
+	strb	r3,[r2,1h]
+
+	mov	r2,9			// r2 = y-origin of HP bar (default 10)
+	lsl	r2,r2,6h		// r2 = tmap y-origin offset
+	add	r1,r1,r2
+	add	r1,30*2			// r1 = tmap ptr after adding x-origin
+
+@@bossEmblem:
+	ldr	r3,=0x124B|(0x124C<<16)
+	str	r3,[r1]
+	ldr	r3,=0x126B|(0x126C<<16)
+	str	r3,[r1,40h]
+
+@@hp:
+	mov	r2,9Ch
+	ldsh	r2,[r0,r2]		// r2 = curHp
+	mov	r3,32			// r3 = barHp
+	ldr	r4,=0x1204|(0x1205<<16)	// r4 = top of HP bar
+	bl	Z1_DrawHpBar
+	ldr	r2,=0x1202|(0x1203<<16)	// r4 = top of HP bar
 	str	r2,[r1]
-@@rank:
-	add	r2,2Ah
-	strh	r2,[r1,4h]
-	add	r1,40h
-	mov	r3,(184h-9Ch)
-	ldrb	r3,[r0,r3]
-	sub	r3,26h
-	add	r3,r3,r2
-	strh	r3,[r1,4h]
-	add	r1,40h
-	add	r2,20h
-	strh	r2,[r1,4h]
 
 @@end:
 	pop	r4-r7,r15
