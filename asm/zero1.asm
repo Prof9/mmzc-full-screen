@@ -289,4 +289,164 @@ Z1_CameraPushBack:
 
 
 
+//----------------------------------------
+// Move Zero's HP bar up and to the left.
+//----------------------------------------
+.thumb
+.org 0x020C864C
+Z1_ZeroHpBar:
+.area 0x294
+	push	r4-r7,r14
+
+	ldr	r1,[r0]			// r1 = tmap
+	ldr	r0,[r0,4h]		// r0 = data
+	add	r0,9Ch			// r0 = data+9Ch
+	cmp	r0,0h
+	beq	@@end
+
+	ldr	r2,=2035918h+4h
+	ldr	r2,[r2]
+	ldrb	r3,[r2,1h]
+	mov	r4,1h
+	orr	r3,r4
+	strb	r3,[r2,1h]
+
+	mov	r2,9			// r2 = y-origin of HP bar (default 10)
+	lsl	r2,r2,6h		// r2 = tmap origin offset
+	add	r1,r1,r2		// r1 = tmap ptr
+	mov	r2,r1			// r2 = tmap ptr
+
+@@zeroEmblem:
+	ldr	r3,=0x120B|(0x120C<<16)
+	str	r3,[r2]
+	ldr	r3,=0x122B|(0x122C<<16)
+	str	r3,[r2,40h]
+	add	r2,80h
+
+@@weapons:
+	mov	r3,0FFh
+	add	r3,r0,r3
+	ldrb	r3,[r3,(1A9h-9Ch-0FFh)]	// r3 = elem
+	lsl	r4,r3,1Fh
+	lsr	r5,r4,1Ch		// r5 = (elem & 1) * 0x8
+	lsr	r3,r3,2h		// c = (elem & 2) ? 1 : 0
+	bcc	@@weapons_check
+	add	r5,30h			// r5 = (elem&1)*0x8+(elem&2)*0x30
+@@weapons_check:
+	mov	r3,(196h-9Ch)
+	add	r3,r0,r3
+	ldrb	r4,[r3,1h]		// r4 =  subWpn
+	ldrb	r3,[r3]			// r3 = mainWpn
+	lsl	r3,r3,1h		// r3 = mainWpn'
+	lsl	r4,r4,1h		// r4 = mainWpn'
+	add	r3,r3,r5		// r3 + mainWpn' + elem'
+	add	r4,r4,r5		// r4 =  subWpn' + elem'
+
+	// Top half of main weapon
+	ldr	r5,=12011200h
+	add	r5,0Dh
+	add	r3,r3,r5		// r3 = 120Dh + mainWpn' + elem'
+	add	r4,r4,r5		// r4 = 120Dh +  subWpn' + elem'
+	strh	r3,[r2]
+	add	r5,r3,1h
+	strh	r5,[r2,2h]
+	add	r2,40h
+
+	cmp	r3,r4			// still works despite the additions
+	bne	@@weapons_two
+@@weapons_one:
+	// Bottom half of main weapon
+	add	r3,20h
+	strh	r3,[r2]
+	add	r3,1h
+	strh	r3,[r2,2h]
+	b	@@hp
+
+@@weapons_two:
+	// Bottom half of main weapon
+	add	r3,40h
+	strh	r3,[r2]
+	add	r5,r3,1h
+	strh	r5,[r2,2h]
+	add	r2,40h
+
+	// Top half of sub weapon
+	strh	r4,[r2]
+	add	r5,r4,1h
+	strh	r5,[r2,2h]
+	add	r2,40h
+
+	// Bottom half of sub weapon
+	add	r4,20h
+	strh	r4,[r2]
+	add	r5,r4,1h
+	strh	r5,[r2,2h]
+
+@@hp:
+	ldrb	r2,[r0]			// r2 = curHp
+	mov	r3,(18Fh-9Ch)
+	ldrb	r3,[r0,r3]		// r3 = barHp
+	ldr	r4,=12011200h		// r4 = first HP bar base tile
+	cmp	r2,r3
+	ble	@@hp_start
+@@hp_second:
+	add	r4,2h			// r4 = second HP bar base tile
+	sub	r2,r2,r3		// r2 = curHp - barHp
+@@hp_start:
+	mov	r5,0h			// r5 = i
+	lsl	r6,r2,1Eh
+	lsr	r6,r6,19h		// r6 = partial HP tile offset
+@@hp_loop:
+	sub	r1,40h			// go to previous row
+	add	r7,r5,4h		// r7 = i + 4
+	cmp	r7,r2			// compare i+4 to curHp(-barHp)
+	bgt	@@hp_notfull
+@@hp_full:
+	mov	r7,20h
+	b	@@hp_next
+@@hp_notfull:
+	mov	r7,0A0h
+	cmp	r5,r2
+	bgt	@@hp_next
+@@hp_partial:
+	sub	r7,r7,r6
+@@hp_next:
+	add	r7,r4,r7		// add base tile
+	strh	r7,[r1]			// store HP tiles
+	add	r7,1h
+	strh	r7,[r1,2h]
+
+	add	r5,4h			// i += 4
+	cmp	r5,r3
+	blt	@@hp_loop
+
+@@hp_top:
+	sub	r1,40h
+	ldr	r2,=12011200h
+	str	r2,[r1]
+@@rank:
+	add	r2,2Ah
+	strh	r2,[r1,4h]
+	add	r1,40h
+	mov	r3,(184h-9Ch)
+	ldrb	r3,[r0,r3]
+	sub	r3,26h
+	add	r3,r3,r2
+	strh	r3,[r1,4h]
+	add	r1,40h
+	add	r2,20h
+	strh	r2,[r1,4h]
+
+@@end:
+	pop	r4-r7,r15
+
+	.pool
+.endarea
+
+.org 0x020CF60C
+	// Move HP bars up a bit.
+//	.dw	(-11) & 0xFFFF		// from -16
+
+
+
 .close
