@@ -430,9 +430,8 @@ ZC_GetRoomFlags:
 	bne	@@end
 
 	// Zero 1 only
-	ldr	r1,=212ADACh+48h
-	ldr	r1,[r1]
-	ldmia	[r1]!,r1,r2	// load zero world position
+	ldr	r1,=212ADACh+38h
+	ldmia	[r1]!,r1,r2	// load current camera position
 	asr	r1,r1,0Ch
 	asr	r2,r2,0Ch
 	ldr	r3,=202D3B4h
