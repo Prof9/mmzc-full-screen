@@ -1,6 +1,14 @@
 .nds
 .open "temp\arm9.dec",0x02004000
 
+.definelabel ROOMFLAG_MASK_LEFT ,0b00000001
+.definelabel ROOMFLAG_MASK_RIGHT,0b00000010
+.definelabel ROOMFLAG_MASK_ABOVE,0b00000100
+.definelabel ROOMFLAG_MASK_BELOW,0b00001000
+.definelabel ROOMFLAG_MASK_HOR  ,0b00000011
+.definelabel ROOMFLAG_MASK_VER  ,0b00001100
+.definelabel ROOMFLAG_MASK_ALL  ,0b00001111
+
 //----------------------------------------------------------------------
 // Replace screen border functions with some functions that blank VRAM.
 // Zero 1 title screen stuff in leftover space.
@@ -438,32 +446,31 @@ ZC_GetRoomFlags:
 
 .align 4
 ZC_Zero1RoomFlags:
-	// Left, Right, Up, Down
 	// Underground Laboratory, Trans Server
-	.db	50,29,(1 | 2 | 4 | 8)
+	.db	50, 29, ROOMFLAG_MASK_ALL
 	// Disposal Center, Trans Server
-	.db	73, 4,(1 | 2 | 4 | 8)
+	.db	73,  4, ROOMFLAG_MASK_ALL
 	// Desert, Trans Server
-	.db	30, 5,(1 | 2 | 4 | 8)
+	.db	30,  5, ROOMFLAG_MASK_ALL
 	// Resistance Base, Ciel's room
-	.db	47, 9,(1 | 2 | 4 | 8)
+	.db	47,  9, ROOMFLAG_MASK_ALL
 	// Resistance Base, Trans Server
-	.db	45,10,(1 | 2 | 4 | 8)
+	.db	45, 10, ROOMFLAG_MASK_ALL
 	// Resistance Base, Cerveau's room
-	.db	45,13,(1 | 2 | 4 | 8)
+	.db	45, 13, ROOMFLAG_MASK_ALL
 	// Resistance Base, 250 EC Cyber-Elf room
-	.db	47,13,(1 | 2 | 4 | 8)
+	.db	47, 13, ROOMFLAG_MASK_ALL
 	// Resistance Base, Andrew room
-	.db	41,12,(1 | 2 | 4 | 8)
+	.db	41, 12, ROOMFLAG_MASK_ALL
 	// Resistance Base, storage room
-	.db	38,13,(0 | 0 | 4 | 8)
-	.db	39,13,(0 | 0 | 4 | 8)
+	.db	38, 13, ROOMFLAG_MASK_VER
+	.db	39, 13, ROOMFLAG_MASK_VER
 	// Resistance Base, sickbay
-	.db	40, 6,(0 | 0 | 4 | 8)
-	.db	41, 6,(0 | 0 | 4 | 8)
+	.db	40,  6, ROOMFLAG_MASK_VER
+	.db	41,  6, ROOMFLAG_MASK_VER
 	// Resistance Base, Energy room
-	.db	38,12,(0 | 0 | 4 | 8)
-	.db	39,12,(0 | 0 | 4 | 8)
+	.db	38, 12, ROOMFLAG_MASK_VER
+	.db	39, 12, ROOMFLAG_MASK_VER
 	.db	0xFF
 .endarea
 
