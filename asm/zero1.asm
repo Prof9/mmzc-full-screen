@@ -293,15 +293,26 @@ Z1_CameraPushBack:
 // Move the HP bars up and to the side.
 //--------------------------------------
 .thumb
-.org 0x020C864C
-Z1_ZeroHpBar:
-.area 0x294
-	push	r4-r7,r14
+.org 0x020C8620
+.area 0x434
+Z1_HpBars:
+	push	r3-r7,r14
 
+	ldr	r3,=2036160h
+	ldr	r0,[r3,20h]
+	lsl	r2,r0,4h
+	add	r3,0Eh
+	ldrb	r0,[r3,r2]
+	mov	r1,1h
+	orr	r0,r1
+	strb	r0,[r3,r2]
+
+Z1_ZeroHpBar:
+	ldr	r0,=212B93Ch
 	ldr	r1,[r0]			// r1 = tmap
 	ldr	r0,[r0,4h]		// r0 = data
 	cmp	r0,0h
-	beq	@@end
+	beq	Z1_BossHpBar
 	add	r0,9Ch			// r0 = data+9Ch
 
 	ldr	r2,=2035918h+4h
@@ -410,8 +421,42 @@ Z1_ZeroHpBar:
 	add	r2,20h
 	strh	r2,[r1,4h]
 
+Z1_BossHpBar:
+	ldr	r0,=212B93Ch
+	ldr	r1,[r0]			// r1 = tmap
+	ldr	r0,[r0,8h]		// r0 = data
+	cmp	r0,0h
+	beq	@@end
+
+	ldr	r2,=2035918h+4h
+	ldr	r2,[r2]
+	ldrb	r3,[r2,1h]
+	mov	r4,1h
+	orr	r3,r4
+	strb	r3,[r2,1h]
+
+	mov	r2,9			// r2 = y-origin of HP bar (default 10)
+	lsl	r2,r2,6h		// r2 = tmap y-origin offset
+	add	r1,r1,r2
+	add	r1,30*2			// r1 = tmap ptr after adding x-origin
+
+@@bossEmblem:
+	ldr	r3,=0x124B|(0x124C<<16)
+	str	r3,[r1]
+	ldr	r3,=0x126B|(0x126C<<16)
+	str	r3,[r1,40h]
+
+@@hp:
+	mov	r2,9Ch
+	ldsh	r2,[r0,r2]		// r2 = curHp
+	mov	r3,32			// r3 = barHp
+	ldr	r4,=0x1204|(0x1205<<16)	// r4 = top of HP bar
+	bl	Z1_DrawHpBar
+	ldr	r2,=0x1202|(0x1203<<16)	// r4 = top of HP bar
+	str	r2,[r1]
+
 @@end:
-	pop	r4-r7,r15
+	pop	r3-r7,r15
 
 Z1_DrawHpBar:
 	// in:
@@ -465,50 +510,33 @@ Z1_DrawHpBar:
 	bx	r14
 
 	.pool
-.endarea
 
-.thumb
-.org 0x020C88E0
-Z1_BossHpBar:
-.area 0x174
-	push	r4-r7,r14
+// FREE SPACE
 
-	ldr	r1,[r0]			// r1 = tmap
-	ldr	r0,[r0,8h]		// r0 = data
-	cmp	r0,0h
-	beq	@@end
+Z1_TitleExtendLineIn1:
+	mov	r5,0h
+	asr	r0,r0,3h
+	cmp	r0,14h
+	blt	.+4h
+	mov	r0,13h
+	bx	r14
 
-	ldr	r2,=2035918h+4h
-	ldr	r2,[r2]
-	ldrb	r3,[r2,1h]
-	mov	r4,1h
-	orr	r3,r4
-	strb	r3,[r2,1h]
+Z1_TitleExtendLineIn2:
+	ldsh	r4,[r6,r3]
+	cmp	r4,0A0h
+	blt	.+4h
+	mov	r4,9Fh
+	sub	r4,r4,r0
+	bx	r14
 
-	mov	r2,9			// r2 = y-origin of HP bar (default 10)
-	lsl	r2,r2,6h		// r2 = tmap y-origin offset
-	add	r1,r1,r2
-	add	r1,30*2			// r1 = tmap ptr after adding x-origin
+Z1_TitleExtendLineIn3:
+	ldsh	r3,[r6,r1]
+	cmp	r3,0A0h
+	blt	.+4h
+	mov	r3,9Fh
+	mov	r1,7h
+	bx	r14
 
-@@bossEmblem:
-	ldr	r3,=0x124B|(0x124C<<16)
-	str	r3,[r1]
-	ldr	r3,=0x126B|(0x126C<<16)
-	str	r3,[r1,40h]
-
-@@hp:
-	mov	r2,9Ch
-	ldsh	r2,[r0,r2]		// r2 = curHp
-	mov	r3,32			// r3 = barHp
-	ldr	r4,=0x1204|(0x1205<<16)	// r4 = top of HP bar
-	bl	Z1_DrawHpBar
-	ldr	r2,=0x1202|(0x1203<<16)	// r4 = top of HP bar
-	str	r2,[r1]
-
-@@end:
-	pop	r4-r7,r15
-
-	.pool
 .endarea
 
 .org 0x020CF60C

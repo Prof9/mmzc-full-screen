@@ -37,30 +37,6 @@ ZC_ClearBG:
 	// Blue tiles for Inti Creates intro screen.
 	.dh	0x2000,0x2000
 
-Z1_TitleExtendLineIn1:
-	mov	r5,0h
-	asr	r0,r0,3h
-	cmp	r0,14h
-	blt	.+4h
-	mov	r0,13h
-	bx	r14
-
-Z1_TitleExtendLineIn2:
-	ldsh	r4,[r6,r3]
-	cmp	r4,0A0h
-	blt	.+4h
-	mov	r4,9Fh
-	sub	r4,r4,r0
-	bx	r14
-
-Z1_TitleExtendLineIn3:
-	ldsh	r3,[r6,r1]
-	cmp	r3,0A0h
-	blt	.+4h
-	mov	r3,9Fh
-	mov	r1,7h
-	bx	r14
-
 	.pool
 .endarea
 
